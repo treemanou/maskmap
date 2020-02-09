@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>口罩地圖</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.4.1/MarkerCluster.css"></link> 
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.4.1/MarkerCluster.Default.css"></link>  
+    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.4.1/leaflet.markercluster.js"></script>
+
+<style>
+    html,body{
+        width: 100%;
+        height: 100%;
+    }
+    h1,h5{
+        margin:0px;
+    }
+    #map { width: 100%;height: 100%; }
+
+    .marker-cluster-small {
+		background-color: rgba(181, 226, 140, 0.6);
+		}
+	.marker-cluster-small div {
+		background-color: rgba(110, 204, 57, 0.6);
+		}
+
+	.marker-cluster-medium {
+		background-color: rgba(241, 211, 87, 0.6);
+		}
+	.marker-cluster-medium div {
+		background-color: rgba(240, 194, 12, 0.6);
+		}
+
+	.marker-cluster-large {
+		background-color: rgba(253, 156, 115, 0.6);
+		}
+	.marker-cluster-large div {
+		background-color: rgba(241, 128, 23, 0.6);
+		}
+
+	.marker-cluster {
+		background-clip: padding-box;
+		border-radius: 20px;
+		}
+	.marker-cluster div {
+		width: 30px;
+		height: 30px;
+		margin-left: 5px;
+		margin-top: 5px;
+
+		text-align: center;
+		border-radius: 15px;
+		font: 12px "Helvetica Neue", Arial, Helvetica, sans-serif;
+		}
+	.marker-cluster span {
+		line-height: 30px;
+		}
+    .mask_title {
+        background-color: red;
+        color: white;
+        padding: 0px 5px;
+    }
+    .mask_value {
+        padding: 0px 5px;
+    }
+</style>
+<script type="text/javascript">
+var gLatitude = 24.9925165;
+var gLongitude = 121.5221856;
+var gZoom = 11;
+
+window.onload=function(){
+
+    getLocation();
+
+}
+
+function init_map(){
+
+    var map = L.map('map', {
+        center: [gLatitude, gLongitude],
+        zoom: gZoom
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    getData(map);
+}
+function isMobile() {
+    try{ 
+            document.createEvent("TouchEvent"); return true; 
+    }catch(e){ 
+            return false;
+    }
+}
+function getLocation() {
+    if (navigator.geolocation && !isMobile()) {
+        // console.log(navigator.geolocation);
+        navigator.geolocation.getCurrentPosition(function(position){
+                window.gLatitude = position.coords.latitude;
+                window.gLongitude = position.coords.longitude;
+                window.gZoom = 16;
+            init_map();
+        },
+        function(error) {
+            console.log("position",error)
+            // console.log('Error occurred. Error code: ' + error.code);
+            // error.code can be:
+            //   0: unknown error
+            //   1: permission denied
+            //   2: position unavailable (error response from location provider)
+            //   3: timed out
+            alert(error.message);
+            init_map();
+        }
+        );
+        return;
+    } 
+    init_map();
+}
+
+function getData(map){
+
+    // var markers = L.markerClusterGroup({
+    //     iconCreateFunction: function(cluster) {
+    //         console.log("cluster",cluster);
+    //         return L.divIcon({ html: '<div>' + cluster.getChildCount() + '</div>' });
+    //     }
+    // }).addTo(map);
+    var markers = new L.MarkerClusterGroup().addTo(map);
+    var greenIcon = new L.Icon({
+    iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+    });
+    var redIcon = new L.Icon({
+    iconUrl: 'https://cdn.rawgit.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+    });
+
+
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("get","https://raw.githubusercontent.com/kiang/pharmacies/master/json/points.json");
+    xhr.send();
+    xhr.onload = function(){
+        var data = JSON.parse(xhr.responseText).features;
+        for(let i =0;data.length>i;i++){
+            var mask;
+            if(data[i].properties.mask_adult == 0){
+                mask = redIcon;
+            }else{
+                mask = greenIcon;
+            } 
+            markers.addLayer(L.marker([data[i].geometry.coordinates[1],data[i].geometry.coordinates[0]], {icon: mask})
+            .bindPopup(genPopupHtml(data[i])));
+            // add more markers here...
+            // L.marker().addTo(map)
+            //   )
+            }
+            map.addLayer(markers);
+        }
+}
+
+function genPopupHtml(data){
+    var html =[
+    '<h1>'+data.properties.name+'</h1>',
+    '<h5>電話: '+'<a href="tel:"'+ data.properties.phone + '">'+ data.properties.phone+'</a></h5>',
+    '<h5>地址: '+data.properties.address+'</h5>',
+    '<h5>更新時間: '+data.properties.updated+'</h5>',
+    // '<h5>營業時間: '+data.properties.available+'</h5>', 
+    '<h5> '+data.properties.note+'</h5>', 
+    '<hr>',
+    '<div>',
+        '<span class="mask_title">'+"成人"+'</span>',
+        '<span class="mask_value">'+data.properties.mask_adult+'</span>',
+        '<span class="mask_title">'+"兒童"+'</span>',
+        '<span class="mask_value">'+data.properties.mask_child+'</span>',
+    '</div>'
+    ]
+    return html.join('');
+}
+</script>
+</head>
+<body>
+    <div id="map"></div>
+</body>
+</html>
